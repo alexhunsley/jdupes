@@ -707,19 +707,24 @@ static int check_singlefile(file_t * const restrict newfile)
     /* Exclude zero-length files if requested */
     if (newfile->size == 0 && !ISFLAG(flags, F_INCLUDEEMPTY)) return 1;
 
-    /* Exclude files based on exclusion stack size specs */
+    /* If no inclusion filters specified, accept the file */
+    if (!exclude_head) return 0;
+
+    /* Exclude files based on inclusion stack size specs.
+     * Note that the inclusion specs are ANDed together -- all inclusion filters must be satisfied.
+     * Also, file size equals filter has been disabled, since for inclusion this filter makes less sense.
+     **/
     excluded = 0;
     for (struct exclude *excl = exclude_head; excl != NULL; excl = excl->next) {
       uint32_t sflag = excl->flags & XX_EXCL_SIZE;
       if (
            ((sflag == X_SIZE_EQ) && (newfile->size != excl->size)) ||
-           ((sflag == X_SIZE_LTEQ) && (newfile->size <= excl->size)) ||
-           ((sflag == X_SIZE_GTEQ) && (newfile->size >= excl->size)) ||
-           ((sflag == X_SIZE_GT) && (newfile->size > excl->size)) ||
-           ((sflag == X_SIZE_LT) && (newfile->size < excl->size))
-      ) excluded = 1;
+           ((sflag == X_SIZE_LTEQ) && (newfile->size > excl->size)) ||
+           ((sflag == X_SIZE_GTEQ) && (newfile->size < excl->size)) ||
+           ((sflag == X_SIZE_GT) && (newfile->size <= excl->size)) ||
+           ((sflag == X_SIZE_LT) && (newfile->size >= excl->size))
+      ) return 1;
     }
-    if (excluded) return 1;
   }
 
   return 0;
